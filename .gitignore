@@ -6,4 +6,11 @@ public_key.bin
 main.py
 keys.py
 
-**/__pycache__
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.env
