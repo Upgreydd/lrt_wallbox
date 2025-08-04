@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Generic, TypeVar, Optional
 
-from exceptions import WallboxError
+from ..exceptions import WallboxError
 
 
 @dataclass

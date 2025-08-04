@@ -10,9 +10,8 @@ from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
 
-from exceptions import WallboxError
-
-from msg_types import *
+from .exceptions import WallboxError
+from .msg_types import *
 
 logger = logging.getLogger(__name__)
 

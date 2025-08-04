@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 from .helpers import Color, ColorFull
 
