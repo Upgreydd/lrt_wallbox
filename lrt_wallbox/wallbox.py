@@ -40,8 +40,8 @@ class WallboxClient:
 
     @staticmethod
     def _load_keys() -> tuple[EllipticCurvePrivateKey, bytes]:
-        priv_path = "private_key.pem"
-        pub_path = "public_key.bin"
+        priv_path = os.path.join(os.path.dirname(__file__), "privkey.pem")
+        pub_path = os.path.join(os.path.dirname(__file__), "pubkey.pem")
 
         if os.path.exists(priv_path) and os.path.exists(pub_path):
             with open(priv_path, "rb") as f:
