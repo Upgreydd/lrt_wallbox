@@ -1,6 +1,6 @@
 [project]
 name = "lrt_wallbox"
-version = "0.1.5"
+version = "0.1.6"
 description = "A Python client for interacting with LRT Wallbox devices via HTTP API."
 keywords = ["wallbox", "ev", "ocpp", "api", "lrt", "aeg"]
 readme = { file = "README.md", content-type = "text/markdown" }
