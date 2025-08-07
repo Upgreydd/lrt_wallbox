@@ -1,5 +1,6 @@
 import logging
 import os
+import threading
 import time
 from dataclasses import is_dataclass, asdict
 from typing import Optional, TypeVar, Type, get_origin, get_args
@@ -34,6 +35,8 @@ class WallboxClient:
         self._session_valid = session_valid
         self._last_key_auth = 0.0
         self._last_password_auth = 0.0
+        self._key_auth_lock = threading.Lock()
+        self._password_auth_lock = threading.Lock()
 
     @staticmethod
     def _load_keys() -> tuple[EllipticCurvePrivateKey, bytes]:
@@ -68,32 +71,34 @@ class WallboxClient:
         return private_key, compressed_pub
 
     def _key_auth(self):
-        if time.time() - self._last_key_auth < self._session_valid:
-            logger.debug("Skipping key auth, still valid")
-            return
-        app_private_key, app_public_key = self._load_keys()
-        user = self.user_current()
-        if user.publicKey != list(app_public_key):
-            logger.debug("User public key does not match local public key")
-            user.publicKey = list(app_public_key)
-            user_data = UserData(id=user.id, user=user)
-            self.user_update(user_data)
-        challenge_response = self.auth_key_init(user.id)
-        logger.debug("Public key authentication challenge received")
-        signature = app_private_key.sign(bytes(challenge_response.challenge), ec.ECDSA(hashes.SHA256()))
-        r = self.auth_key_response(list(signature))
-        if not r.authenticated:
-            raise WallboxError(message="Public key authentication failed", kind="AuthenticationError")
-        self._last_key_auth = time.time()
+        with self._key_auth_lock:
+            if time.time() - self._last_key_auth < self._session_valid:
+                logger.debug("Skipping key auth, still valid")
+                return
+            app_private_key, app_public_key = self._load_keys()
+            user = self.user_current()
+            if user.publicKey != list(app_public_key):
+                logger.debug("User public key does not match local public key")
+                user.publicKey = list(app_public_key)
+                user_data = UserData(id=user.id, user=user)
+                self.user_update(user_data)
+            challenge_response = self.auth_key_init(user.id)
+            logger.debug("Public key authentication challenge received")
+            signature = app_private_key.sign(bytes(challenge_response.challenge), ec.ECDSA(hashes.SHA256()))
+            r = self.auth_key_response(list(signature))
+            if not r.authenticated:
+                raise WallboxError(message="Public key authentication failed", kind="AuthenticationError")
+            self._last_key_auth = time.time()
 
     def _password_auth(self) -> None:
-        if time.time() - self._last_password_auth < self._session_valid:
-            logger.debug("Skipping password auth, still valid")
-            return
-        r = self.auth_password(self.__username, self.__password)
-        if not r.authenticated:
-            raise WallboxError(message="Password authentication failed", kind="AuthenticationError")
-        self._last_password_auth = time.time()
+        with self._password_auth_lock:
+            if time.time() - self._last_password_auth < self._session_valid:
+                logger.debug("Skipping password auth, still valid")
+                return
+            r = self.auth_password(self.__username, self.__password)
+            if not r.authenticated:
+                raise WallboxError(message="Password authentication failed", kind="AuthenticationError")
+            self._last_password_auth = time.time()
 
     @staticmethod
     def _prepare_payload(payload) -> dict:
