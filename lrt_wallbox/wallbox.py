@@ -111,18 +111,30 @@ class WallboxClient:
             payload = asdict(payload)
         return payload
 
-    def send(
-        self,
-        key: str,
-        response_model: Type[R],
-        body: Optional[object] = None,
-        auth=False,
-        publickey_auth=False,
-    ) -> Optional[R]:
+    def _maybe_authenticate(self, auth: bool, publickey_auth: bool) -> None:
         if auth:
             self._password_auth()
         if publickey_auth:
             self._key_auth()
+
+    def send(self, key: str, response_model: Type[R], body: Optional[object] = None, auth=False, publickey_auth=False) -> Optional[R]:
+        try:
+            self._maybe_authenticate(auth, publickey_auth)
+            return self._send_inner(key, response_model, body)
+        except WallboxError as e:
+            if e.kind == "Permission":
+                if publickey_auth:
+                    logger.debug("Publickey session expired — retrying key_auth() once.")
+                    self._last_key_auth = 0
+                    self._key_auth()
+                    return self._send_inner(key, response_model, body)
+                elif auth:
+                    logger.debug("Password session expired — retrying auth_password() once.")
+                    self._last_password_auth = 0
+                    self._password_auth()
+            raise
+
+    def _send_inner(self, key: str, response_model: Type[R], body: Optional[object] = None) -> Optional[R]:
         if body is not None:
             if is_dataclass(body):
                 if hasattr(body, "to_array"):
