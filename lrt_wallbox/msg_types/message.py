@@ -28,5 +28,5 @@ class MessageResponse(Generic[T]):
 
     def raise_if_error(self):
         if self.error:
-            raise WallboxError(f"Error {self.error.kind} in field {self.error.field}: {self.error.message}")
+            raise WallboxError(kind=self.error.kind, message=self.error.message, field=self.error.field)
         return self.body

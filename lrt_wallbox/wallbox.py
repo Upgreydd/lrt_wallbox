@@ -69,32 +69,30 @@ class WallboxClient:
 
     def _key_auth(self):
         if time.time() - self._last_key_auth < self._session_valid:
-            logger.info("Skipping key auth, still valid")
+            logger.debug("Skipping key auth, still valid")
             return
         app_private_key, app_public_key = self._load_keys()
         user = self.user_current()
         if user.publicKey != list(app_public_key):
-            logger.info("User public key does not match local public key")
+            logger.debug("User public key does not match local public key")
             user.publicKey = list(app_public_key)
             user_data = UserData(id=user.id, user=user)
-            print(user.publicKey)
-            print(app_public_key)
             self.user_update(user_data)
         challenge_response = self.auth_key_init(user.id)
-        logger.info("Public key authentication challenge received")
+        logger.debug("Public key authentication challenge received")
         signature = app_private_key.sign(bytes(challenge_response.challenge), ec.ECDSA(hashes.SHA256()))
         r = self.auth_key_response(list(signature))
         if not r.authenticated:
-            raise WallboxError("Public key authentication failed")
+            raise WallboxError(message="Public key authentication failed", kind="AuthenticationError")
         self._last_key_auth = time.time()
 
     def _password_auth(self) -> None:
         if time.time() - self._last_password_auth < self._session_valid:
-            logger.info("Skipping password auth, still valid")
+            logger.debug("Skipping password auth, still valid")
             return
         r = self.auth_password(self.__username, self.__password)
         if not r.authenticated:
-            raise WallboxError("Password authentication failed")
+            raise WallboxError(message="Password authentication failed", kind="AuthenticationError")
         self._last_password_auth = time.time()
 
     @staticmethod
@@ -130,9 +128,10 @@ class WallboxClient:
         else:
             payload = MessageRequest(key=key)
         payload = self._prepare_payload(payload)
-        logger.info(f"sending payload key: {payload['key']}")
+        msg = f"sending payload key: {payload['key']}"
         if payload.get("body"):
-            logger.info(f"with body: {payload.get('body')}")
+            msg += f", body: {payload['body']!r}"
+        logger.debug(msg)
 
         encoded = cbor2.dumps(payload)
         resp = requests.post(
@@ -147,13 +146,12 @@ class WallboxClient:
         resp.raise_for_status()
         decoded = cbor2.loads(resp.content)
         if not resp.ok or not isinstance(decoded, dict):
-            raise WallboxError(f"Invalid response: {decoded}")
+            raise WallboxError(message=f"Invalid response: {decoded}", kind="InvalidResponse")
         else:
-            logger.info(f"received response: {decoded}")
+            logger.debug(f"received response: {decoded}")
         if "error" in decoded:
             err = ErrorData(**decoded["error"])
-            field_info = f" (field: {err.field})" if err.field else ""
-            raise WallboxError(f"[{decoded['key']}] {err.kind}: {err.message}{field_info}")
+            raise WallboxError(message=err.message, field=err.field, kind=err.kind, key=key)
 
         body_data = decoded["body"]
         if response_model is not None:
@@ -288,7 +286,7 @@ class WallboxClient:
     # WLAN methods
     def wlan_scan(self) -> dict:
         raise NotImplementedError("WLAN scan is not implemented yet.")
-        return self.send("wlan/scan")
+        # return self.send("wlan/scan")
 
     # Utils methods
     def util_restart(self) -> UtilRestartData:
@@ -297,7 +295,6 @@ class WallboxClient:
     def util_atmel_restart(self) -> UtilAtmelRestartResponse:
         return self.send("util/atmel/restart", UtilAtmelRestartResponse)
 
-    # TODO: NOT TESTED ONE
     def util_factory_reset(self) -> FactoryResetResponse:
         raise NotImplementedError("Factory reset is not implemented yet.")
-        return self.send("util/factory/reset", FactoryResetResponse)
+        # return self.send("util/factory/reset", FactoryResetResponse)
