@@ -25,12 +25,7 @@ class TransactionStopResponse:
 
 @dataclass
 class TransactionStartRequest:
-    transaction_id: int = 0
-    connector_id: int = 1
-    tag_id_length: int = 4
     tag_id: List[int] = field(default_factory=list)
 
     def to_array(self):
-        tag_length = len([x for x in self.tag_id if x != 0])
-        tag_inverted = self.tag_id[::-1]
-        return [CBORTag(64, self.transaction_id), CBORTag(64, self.connector_id), CBORTag(64, tag_length), *tag_inverted[0:7]]
+        return self.tag_id
